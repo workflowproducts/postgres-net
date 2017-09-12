@@ -1,3 +1,5 @@
+CREATE SCHEMA dte
+  AUTHORIZATION postgres;
 
 CREATE OR REPLACE FUNCTION dte.focy()
   RETURNS text AS
