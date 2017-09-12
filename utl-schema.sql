@@ -1,3 +1,5 @@
+CREATE SCHEMA utl
+  AUTHORIZATION postgres;
 
 CREATE OR REPLACE FUNCTION utl.base36_decode(base36 text)
   RETURNS bigint AS
