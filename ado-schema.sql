@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION adm.default_stamp_fn()
+CREATE OR REPLACE FUNCTION ado.default_stamp_fn()
   RETURNS trigger AS
 $BODY$ 
 DECLARE
@@ -23,7 +23,7 @@ $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
 
-CREATE OR REPLACE FUNCTION usr.update_tra()
+CREATE OR REPLACE FUNCTION ado.update_tra()
   RETURNS trigger AS
 $BODY$
 DECLARE
@@ -93,5 +93,3 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER
   COST 100;
-
-ALTER FUNCTION usr.update_tra() OWNER TO postgres;
