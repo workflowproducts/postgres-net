@@ -95,5 +95,3 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION usr.update_tra() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION usr.update_tra() TO postgres;
-REVOKE ALL ON FUNCTION usr.update_tra() FROM public;
