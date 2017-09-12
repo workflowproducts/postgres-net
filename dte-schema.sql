@@ -9,8 +9,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.focy() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.focy() TO postgres;
-GRANT EXECUTE ON FUNCTION dte.focy() TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.focy(text)
@@ -32,8 +30,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.focy(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.focy(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.focy(text) TO public;
 
 CREATE OR REPLACE FUNCTION dte.fom()
   RETURNS date AS
@@ -44,8 +40,6 @@ $BODY$
 LANGUAGE sql VOLATILE COST 100;
 
 ALTER FUNCTION dte.fom() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.fom() TO postgres;
-GRANT EXECUTE ON FUNCTION dte.fom() TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.fom(text)
@@ -67,8 +61,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.fom(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.fom(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.fom(text) TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.foty()
@@ -81,8 +73,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.foty() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.foty() TO postgres;
-GRANT EXECUTE ON FUNCTION dte.foty() TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.foty(text)
@@ -104,8 +94,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.foty(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.foty(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.foty(text) TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.get_period(text)
@@ -159,8 +147,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.get_period(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.get_period(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.get_period(text) TO public;
 
 
 
@@ -173,8 +159,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.getquarter() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.getquarter() TO postgres;
-GRANT EXECUTE ON FUNCTION dte.getquarter() TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.getquarter(text)
@@ -195,8 +179,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.getquarter(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.getquarter(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.getquarter(text) TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.lom()
@@ -218,8 +200,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.lom() OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.lom() TO postgres;
-GRANT EXECUTE ON FUNCTION dte.lom() TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.lom(text)
@@ -245,8 +225,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.lom(text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.lom(text) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.lom(text) TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.previous_date_of_day(the_date date, dow integer)
@@ -262,8 +240,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.previous_date_of_day(the_date date, dow integer) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.previous_date_of_day(the_date date, dow integer) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.previous_date_of_day(the_date date, dow integer) TO public;
 
 
 CREATE OR REPLACE FUNCTION dte.timeclock_noround(time without time zone)
@@ -277,8 +253,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.timeclock_noround(time without time zone) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.timeclock_noround(time without time zone) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.timeclock_noround(time without time zone) TO public;
 
 
 
@@ -313,6 +287,4 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION dte.for_month_and_day_give_next_future_date(date) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION dte.for_month_and_day_give_next_future_date(date) TO postgres;
-GRANT EXECUTE ON FUNCTION dte.for_month_and_day_give_next_future_date(date) TO public;
 
