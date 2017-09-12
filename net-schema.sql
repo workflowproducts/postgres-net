@@ -1,8 +1,6 @@
 
 CREATE SCHEMA net
 	AUTHORIZATION postgres;
-GRANT ALL ON SCHEMA net TO postgres;
-COMMENT ON SCHEMA net IS 'Browser utility functions';
 
 CREATE OR REPLACE FUNCTION net.text_to_uri(text)
 	RETURNS text AS
@@ -104,8 +102,6 @@ $BODY$
 	COST 100;
 
 ALTER FUNCTION net.getpare(text, text) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION net.getpare(text, text) TO postgres;
-GRANT EXECUTE ON FUNCTION net.getpare(text, text) TO public;
 
 CREATE OR REPLACE FUNCTION net.uri_to_text(text)
 	RETURNS text AS
@@ -159,5 +155,3 @@ $BODY$
 	COST 100;
 
 ALTER FUNCTION net.jsonify(anyelement) OWNER TO postgres;
-GRANT EXECUTE ON FUNCTION net.jsonify(anyelement) TO postgres;
-GRANT EXECUTE ON FUNCTION net.jsonify(anyelement) TO public;
