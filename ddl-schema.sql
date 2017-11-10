@@ -1,138 +1,6 @@
 CREATE SCHEMA ddl
   AUTHORIZATION postgres;
 
-CREATE OR REPLACE FUNCTION ddl.col(text)
-  RETURNS text AS
-$BODY$
-   SELECT ddl.oid_to_columns(ddl.fullname_to_oid($1),'');
-$BODY$
-  LANGUAGE sql IMMUTABLE
-  COST 100;
-
-ALTER FUNCTION ddl.col(text) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.fullname_to_oid(text)
-  RETURNS oid AS
-$BODY$
-SELECT oid FROM pg_class WHERE relname = substring($1 from position('.' in $1)+1)
-	AND relnamespace=ddl.schema_to_oid(substring($1 from 1 for position('.' in $1)-1));
-$BODY$
-  LANGUAGE sql IMMUTABLE
-  COST 100;
-
-ALTER FUNCTION ddl.fullname_to_oid(text) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.function_stored(text)
-  RETURNS text AS
-$BODY$
-  SELECT prosrc FROM pg_proc WHERE proname = $1;
-$BODY$
-  LANGUAGE sql IMMUTABLE
-  COST 100;
-
-ALTER FUNCTION ddl.function_stored(text) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.group_user(name)
-  RETURNS boolean AS
-$BODY$
-
-  -- accepts group name, returns whether session user has permission to that group
-  SELECT CASE WHEN (SELECT count(*)
-	FROM pg_roles r
-	JOIN pg_auth_members ON r.oid=roleid
-	JOIN pg_roles u ON member = u.oid
-	WHERE r.rolname = $1 AND u.rolname = session_user) > 0 THEN true ELSE false END;
-	
-$BODY$
-  LANGUAGE sql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.group_user(name) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.group_user(name, name)
-  RETURNS boolean AS
-$BODY$
-
-  -- accepts (user name, group name), returns whether user has permission to that group
-  SELECT CASE WHEN (SELECT count(*)
-	FROM pg_roles r
-	JOIN pg_auth_members ON r.oid=roleid
-	JOIN pg_roles u ON member = u.oid
-	WHERE r.rolname = $2 AND u.rolname = $1 ) > 0 THEN true ELSE false END;
-	
-$BODY$
-  LANGUAGE sql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.group_user(name, name) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.groups_user()
-  RETURNS text AS
-$BODY$
-
-  -- returns a comma seperated list of groups the session user belongs to. 
-  SELECT cat_comma(r.rolname)::text
-	FROM pg_roles r
-	JOIN pg_auth_members ON r.oid=roleid
-	JOIN pg_roles u ON member = u.oid
-	WHERE u.rolname = session_user;
-
-$BODY$
-  LANGUAGE sql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.groups_user() OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.groups_user(name)
-  RETURNS text AS
-$BODY$
-
-  -- accepts user name, returns a comma seperated list of groups the user belongs to. 
-  SELECT cat_comma(r.rolname)::text
-	FROM pg_roles r
-	JOIN pg_auth_members ON r.oid=roleid
-	JOIN pg_roles u ON member = u.oid
-	WHERE u.rolname = $1;
-	
-$BODY$
-  LANGUAGE sql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.groups_user(name) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.name_to_fullname(text)
-  RETURNS text AS
-$BODY$
-DECLARE
- tbl text;
- sch text;
- dup_chk integer;
-
-BEGIN
- IF position('.' in $1) > 0 THEN
-  tbl := substring($1 from position('.' in $1)+1);
-  sch := substring($1 from 1 for position('.' in $1)-1);
-  RETURN sch || '.' || tbl;
- ELSE
-  tbl := $1;
-  SELECT INTO dup_chk sum(1) FROM pg_tables 
-    WHERE tablename=tbl AND schemaname !~ 'pg_|information_schema|pgagent';
-  IF dup_chk != 1 THEN
-    RAISE NOTICE 'There are % tables named "%".',dup_chk, tbl;
-    RETURN null;
-  ELSE
-    SELECT INTO sch schemaname FROM pg_tables 
-	WHERE tablename = tbl;
-    RETURN sch || '.' || tbl;
-  END IF;
- END IF;
-END;
-$BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.name_to_fullname(text) OWNER TO postgres;
-
 CREATE OR REPLACE FUNCTION ddl.oid_to_columns(oid, text)
   RETURNS text AS
 $BODY$
@@ -244,6 +112,148 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.oid_to_columns(oid, text) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.schema_to_oid(text)
+  RETURNS oid AS
+$BODY$
+  SELECT oid::integer FROM pg_namespace WHERE nspname = $1;
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.schema_to_oid(text) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.fullname_to_oid(text)
+  RETURNS oid AS
+$BODY$
+SELECT oid FROM pg_class WHERE relname = substring($1 from position('.' in $1)+1)
+	AND relnamespace=ddl.schema_to_oid(substring($1 from 1 for position('.' in $1)-1));
+$BODY$
+  LANGUAGE sql IMMUTABLE
+  COST 100;
+
+ALTER FUNCTION ddl.fullname_to_oid(text) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.col(text)
+  RETURNS text AS
+$BODY$
+   SELECT ddl.oid_to_columns(ddl.fullname_to_oid($1),'');
+$BODY$
+  LANGUAGE sql IMMUTABLE
+  COST 100;
+
+ALTER FUNCTION ddl.col(text) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.function_stored(text)
+  RETURNS text AS
+$BODY$
+  SELECT prosrc FROM pg_proc WHERE proname = $1;
+$BODY$
+  LANGUAGE sql IMMUTABLE
+  COST 100;
+
+ALTER FUNCTION ddl.function_stored(text) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.group_user(name)
+  RETURNS boolean AS
+$BODY$
+
+  -- accepts group name, returns whether session user has permission to that group
+  SELECT CASE WHEN (SELECT count(*)
+	FROM pg_roles r
+	JOIN pg_auth_members ON r.oid=roleid
+	JOIN pg_roles u ON member = u.oid
+	WHERE r.rolname = $1 AND u.rolname = session_user) > 0 THEN true ELSE false END;
+	
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.group_user(name) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.group_user(name, name)
+  RETURNS boolean AS
+$BODY$
+
+  -- accepts (user name, group name), returns whether user has permission to that group
+  SELECT CASE WHEN (SELECT count(*)
+	FROM pg_roles r
+	JOIN pg_auth_members ON r.oid=roleid
+	JOIN pg_roles u ON member = u.oid
+	WHERE r.rolname = $2 AND u.rolname = $1 ) > 0 THEN true ELSE false END;
+	
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.group_user(name, name) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.groups_user()
+  RETURNS text AS
+$BODY$
+
+  -- returns a comma seperated list of groups the session user belongs to. 
+  SELECT string_agg(r.rolname, ', ')::text
+	FROM pg_roles r
+	JOIN pg_auth_members ON r.oid=roleid
+	JOIN pg_roles u ON member = u.oid
+	WHERE u.rolname = session_user;
+
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.groups_user() OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.groups_user(name)
+  RETURNS text AS
+$BODY$
+
+  -- accepts user name, returns a comma seperated list of groups the user belongs to. 
+  SELECT string_agg(r.rolname, ', ')::text
+	FROM pg_roles r
+	JOIN pg_auth_members ON r.oid=roleid
+	JOIN pg_roles u ON member = u.oid
+	WHERE u.rolname = $1;
+	
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.groups_user(name) OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION ddl.name_to_fullname(text)
+  RETURNS text AS
+$BODY$
+DECLARE
+ tbl text;
+ sch text;
+ dup_chk integer;
+
+BEGIN
+ IF position('.' in $1) > 0 THEN
+  tbl := substring($1 from position('.' in $1)+1);
+  sch := substring($1 from 1 for position('.' in $1)-1);
+  RETURN sch || '.' || tbl;
+ ELSE
+  tbl := $1;
+  SELECT INTO dup_chk sum(1) FROM pg_tables 
+    WHERE tablename=tbl AND schemaname !~ 'pg_|information_schema|pgagent';
+  IF dup_chk != 1 THEN
+    RAISE NOTICE 'There are % tables named "%".',dup_chk, tbl;
+    RETURN null;
+  ELSE
+    SELECT INTO sch schemaname FROM pg_tables 
+	WHERE tablename = tbl;
+    RETURN sch || '.' || tbl;
+  END IF;
+ END IF;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+
+ALTER FUNCTION ddl.name_to_fullname(text) OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION ddl.oid_to_fullname(oid)
   RETURNS text AS
@@ -416,16 +426,6 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.rename_table(text, text) OWNER TO postgres;
-
-CREATE OR REPLACE FUNCTION ddl.schema_to_oid(text)
-  RETURNS oid AS
-$BODY$
-  SELECT oid::integer FROM pg_namespace WHERE nspname = $1;
-$BODY$
-  LANGUAGE sql VOLATILE
-  COST 100;
-
-ALTER FUNCTION ddl.schema_to_oid(text) OWNER TO postgres;
 
 CREATE OR REPLACE FUNCTION ddl.table_to_view(text, text, text)
   RETURNS text AS
