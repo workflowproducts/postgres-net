@@ -30,9 +30,9 @@ BEGIN
     tbl := ddl.oid_to_name($1);
     sch := ddl.oid_to_schema($1);
     
-    EXECUTE '
-                SELECT cat_comma(attname),
-                       cat_comma(atttypid)
+    EXECUTE $SQL$
+                SELECT string_agg(attname::text , ', ')
+                     , string_agg(atttypid::text, ', ')
                   FROM pg_class c 
                   JOIN pg_attribute a ON c.oid = a.attrelid 
                   JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -40,12 +40,12 @@ BEGIN
                    AND a.attnum >= 0
                    AND n.nspname = $2
                    AND substring(attname from 1 for 1) != $$.$$
-            '
+            $SQL$
             INTO column_names, column_type
             USING tbl, sch;
 
-    column_array := string_to_array(column_names,', ');
-    column_type_array := string_to_array(column_type,', ');
+    column_array := string_to_array(column_names, ', ');
+    column_type_array := string_to_array(column_type, ', ');
     
     SELECT INTO pk_array pg_constraint.conkey
            FROM pg_class
