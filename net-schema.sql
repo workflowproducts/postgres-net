@@ -32,6 +32,7 @@ $BODY$
 	LANGUAGE plpgsql VOLATILE
 	COST 100;
 ALTER FUNCTION net.text_to_uri(text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION net.text_to_uri(text) TO public;
 
 CREATE OR REPLACE FUNCTION net.getpar(text, text)
 	RETURNS text AS
@@ -67,6 +68,7 @@ $BODY$
 	LANGUAGE plpgsql VOLATILE
 	COST 100;
 ALTER FUNCTION net.getpar(text, text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION net.getpar(text, text) TO public;
 
 CREATE OR REPLACE FUNCTION net.getpare(text, text)
 	RETURNS text AS
@@ -102,6 +104,7 @@ $BODY$
 	COST 100;
 
 ALTER FUNCTION net.getpare(text, text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION net.getpare(text, text) TO public;
 
 CREATE OR REPLACE FUNCTION net.uri_to_text(text)
 	RETURNS text AS
@@ -138,6 +141,7 @@ $BODY$
 	LANGUAGE plpgsql VOLATILE
 	COST 100;
 ALTER FUNCTION net.uri_to_text(text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION net.uri_to_text(text) TO public;
 
 CREATE OR REPLACE FUNCTION net.jsonify(anyelement)
 	RETURNS text AS
@@ -155,3 +159,4 @@ $BODY$
 	COST 100;
 
 ALTER FUNCTION net.jsonify(anyelement) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION net.jsonify(anyelement) TO public;
