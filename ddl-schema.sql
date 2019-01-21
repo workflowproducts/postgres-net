@@ -55,8 +55,8 @@ BEGIN
 
     FOR i IN array_lower(column_array,1)..array_upper(column_array,1) LOOP
         IF column_array[i] != 'port_number' THEN
-            text_columns := text_columns || ',' ||- (column_array[i] || '::text');
-            raj_cols := raj_cols || ' || $$,$$ || ' ||-
+            text_columns := text_columns || ',' || (column_array[i] || '::text');
+            raj_cols := raj_cols || ' || $$,$$ || ' ||
                         CASE WHEN column_type_array[i] = '114' 
                              THEN 'COALESCE(' || column_array[i] || $$::text,'null')$$ 
                              ELSE 'net.jsonify(' || column_array[i] || ')'
