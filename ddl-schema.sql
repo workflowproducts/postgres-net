@@ -70,16 +70,16 @@ BEGIN
                 AND column_array[i] != 'delete_stamp'
                 AND column_array[i] != 'create_login'
                 AND column_array[i] != 'change_login' THEN
-            view_columns := view_columns || ',' ||+ column_array[i];
-            tra_columns := tra_columns || ',' ||+ column_array[i];
-            tra_array_columns := tra_array_columns || ',' ||+ ('$4.' || column_array[i]);
+            view_columns := view_columns || ',' || column_array[i];
+            tra_columns := tra_columns || ',' || column_array[i];
+            tra_array_columns := tra_array_columns || ',' || ('$4.' || column_array[i]);
         END IF;
 
         IF i = ANY (pk_array) THEN
-            pk_columns := pk_columns || ',' ||+ column_array[i];
+            pk_columns := pk_columns || ',' || column_array[i];
         ELSE
-            noid_columns := noid_columns || ',' ||+ column_array[i];
-            prop_columns := prop_columns || ',' ||+ 'cat_prop(' || column_array[i] || ') AS ' || column_array[i];
+            noid_columns := noid_columns || ',' || column_array[i];
+            prop_columns := prop_columns || ',' || 'cat_prop(' || column_array[i] || ') AS ' || column_array[i];
             -- all columns but change_stamp, create_stamp, create_login, change_login
             -- if view type, the change stamp column is allowed
             IF (column_array[i] != 'change_stamp' OR $2 = 'view')
@@ -87,9 +87,9 @@ BEGIN
                     AND column_array[i] != 'delete_stamp'
                     AND column_array[i] != 'create_login'
                     AND column_array[i] != 'change_login' THEN
-                nonpk_columns := nonpk_columns || ',' ||+ column_array[i];
-                new_columns := new_columns || ',' ||+ 'new.' || column_array[i];
-                update_columns := update_columns || ',' ||+ column_array[i] || '=new.' || column_array[i];
+                nonpk_columns := nonpk_columns || ',' || column_array[i];
+                new_columns := new_columns || ',' || 'new.' || column_array[i];
+                update_columns := update_columns || ',' || column_array[i] || '=new.' || column_array[i];
             END IF;
         END IF;
     END LOOP;
@@ -364,7 +364,7 @@ BEGIN
       primary_list := string_to_array(ddl.oid_to_columns(toid, 'pk'), ', ');
 
       FOR i IN 1..array_upper(primary_list,1) LOOP
-        primary_clause := primary_clause ||+ CASE WHEN i > 1 THEN 'AND ' ELSE '' END || 'old.' || primary_list[i] 
+        primary_clause := primary_clause || CASE WHEN i > 1 THEN 'AND ' ELSE '' END || 'old.' || primary_list[i] 
           || ' = ' || shortname || '.' || primary_list[i] || ' ';
       END LOOP;
       
@@ -469,7 +469,7 @@ BEGIN
       primary_list := string_to_array(ddl.oid_to_columns(toid, '', 'pk'), ', ');
 
       FOR i IN 1..array_upper(primary_list,1) LOOP
-        primary_clause := primary_clause ||+ CASE WHEN i > 1 THEN 'AND ' ELSE '' END || 'old.' || primary_list[i] 
+        primary_clause := primary_clause || CASE WHEN i > 1 THEN 'AND ' ELSE '' END || 'old.' || primary_list[i] 
           || ' = ' || name_after_rename || '.' || primary_list[i] || ' ';
       END LOOP;
       
