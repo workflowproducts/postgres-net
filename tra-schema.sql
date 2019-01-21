@@ -4,7 +4,7 @@ CREATE SCHEMA tra
   AUTHORIZATION postgres;
 
 GRANT USAGE,CREATE ON SCHEMA tra TO postgres;
-GRANT USAGE ON SCHEMA tra TO envelope_g;
+GRANT USAGE ON SCHEMA tra TO trusted_g;
 
 -- DROP FUNCTION tra.install_tra(str_args text);
 
@@ -14,70 +14,61 @@ $BODY$
 DECLARE
   select_cols text;
   str_table_name text;
+  str_only_table_name text;
   str_sql text;
   str_trigger text;
   str_update text;
-  insert_cols text;
   
 BEGIN
-    -- CREATE SCHEMA tra AUTHORIZATION postgres;
-    -- GRANT USAGE, CREATE ON SCHEMA tra TO postgres;
-    -- GRANT USAGE ON SCHEMA tra TO po_g;
-    -- GRANT USAGE ON SCHEMA tra TO normal_g;
-    -- REVOKE ALL ON SCHEMA tra FROM PUBLIC;
-
+    --Usage: DO $$ EXECUTE tra.install_tra('public.rtable_test'); $$;
+    
     -- INSTALL tra Tables: 
-    str_table_name := net.getpar(str_args,'schema') || '.' || net.getpar(str_args,'table');
+    
+    --get schema and table name
+    str_table_name := str_args;
     RAISE NOTICE 'str_table_name: %', str_table_name;
-	select_cols := (SELECT ddl.oid_to_columns(ddl.fullname_to_oid(str_table_name ),'tra'));
+
+    --get table name
+    str_only_table_name := SUBSTRING(str_table_name FROM POSITION('.' IN str_table_name) + 1);
+    RAISE NOTICE 'str_only_table_name: %', str_only_table_name;
+	
+	--get list of columns
+	select_cols := (SELECT string_agg(attname, ',' ORDER BY attnum)
+	    FROM pg_catalog.pg_attribute
+	    LEFT JOIN pg_catalog.pg_class ON pg_class.oid = pg_attribute.attrelid
+	    LEFT JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+	    WHERE attname NOT IN ('change_stamp'
+            , 'create_stamp'
+            , 'delete_stamp'
+            , 'create_login'
+            , 'change_login')
+        AND pg_namespace.nspname || '.' || pg_class.relname = str_table_name
+        AND pg_attribute.attnum >= 0
+        AND substring(pg_attribute.attname FROM 1 FOR 1) != $$.$$);
 	RAISE NOTICE 'select_cols: %', select_cols;
 	
-    str_sql := $$SELECT 'INSERT'::varchar(6) as tg_op, CASE WHEN change_stamp = create_stamp THEN change_login ELSE 'postgres'::name END as tg_login, 
-        create_stamp as tg_stamp, $$ || select_cols || ' INTO tra.' || net.getpar(str_args,'table') ||
-	' FROM ' || net.getpar(str_args,'schema') || '.' || net.getpar(str_args,'table') || ';';
+	--SQL for creating table with current data
+    str_sql := $$SELECT nextval('tra.tra_seq') AS pk, 'INSERT'::varchar(6) AS tg_op, CASE WHEN change_stamp = create_stamp THEN change_login ELSE 'postgres'::name END AS tg_login, 
+        create_stamp AS tg_stamp, $$ || select_cols || ' INTO tra.' || str_only_table_name ||
+	' FROM ' || str_table_name || ';';
     RAISE NOTICE 'str_sql: %', str_sql;
     
-    str_trigger := $$ DROP TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') || $$ ON $$ || str_table_name || E';\r\n' ||
-     $$ CREATE TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') ||
-     $$ BEFORE INSERT OR UPDATE OR DELETE ON $$ || str_table_name ||
-     $$ FOR EACH ROW EXECUTE PROCEDURE tra.update_tra(); $$ || E'\r\n\r\n';
+    --SQL for creating trigger
+    str_trigger := $$--DROP TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') || $$ ON $$ || str_table_name || E';\r\n' ||
+     $$CREATE TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') ||
+     $$  BEFORE INSERT OR UPDATE OR DELETE ON $$ || str_table_name ||
+     $$  FOR EACH ROW EXECUTE PROCEDURE tra.update_tra(); $$ || E'\r\n\r\n';
     RAISE NOTICE 'str_trigger: %', str_trigger;
     
     -- NEED TO ADD ONE UPDATE TRANSACTION PER RECORD THAT HAS BEEN UPDATED
-    insert_cols := (SELECT ddl.oid_to_columns(ddl.fullname_to_oid(str_table_name),'tra'));
-    RAISE NOTICE 'insert_cols: %', insert_cols;
-
-    str_update :=  $$ INSERT INTO tra.$$ || net.getpar(str_args,'table') || $$ (tg_op, tg_login, tg_stamp, $$ || insert_cols ||
-	    $$) SELECT 'UPDATE', change_login, change_stamp, $$ || insert_cols ||  
+    str_update :=  $$INSERT INTO tra.$$ || str_only_table_name || $$ (tg_op, tg_login, tg_stamp, $$ || select_cols ||
+	    $$) SELECT 'UPDATE', change_login, change_stamp, $$ || select_cols ||  
 	    $$ FROM $$ || str_table_name ||
 	    $$ WHERE change_stamp != create_stamp;$$;
 	RAISE NOTICE 'str_update: %', str_update;
 
+    --return sql
     RETURN str_sql || E'\r\n' || str_update ||  E'\r\n' || str_trigger;
-
---  DROP TABLE tra.rcust_header;
---  DROP TABLE tra.rquote_header;
---  DROP TABLE tra.rquote_line;
---  DROP TABLE tra.rquote_line_del;
---  DROP TABLE tra.rship_codes;
---  DROP TABLE tra.rship_track;
---  DROP TABLE tra.rso_head;
---  DROP TABLE tra.rso_note;
---  DROP TABLE tra.rso_operation;
---  DROP TABLE tra.rso_operation_addon;
---  DROP TABLE tra.rso_vend_process;
- 
--- SELECT tra.install_tra('schema=usr&table=rcust_header') 
--- || tra.install_tra('schema=usr&table=rquote_header')
--- || tra.install_tra('schema=usr&table=rquote_line')
--- || tra.install_tra('schema=usr&table=rquote_line_del')
--- || tra.install_tra('schema=usr&table=rship_codes')
--- || tra.install_tra('schema=usr&table=rship_track')
--- || tra.install_tra('schema=usr&table=rso_head')
--- || tra.install_tra('schema=usr&table=rso_note')
--- || tra.install_tra('schema=usr&table=rso_operation')
--- || tra.install_tra('schema=usr&table=rso_operation_addon')
--- || tra.install_tra('schema=usr&table=rso_vend_process');
 
   --***********************************
   -- how tra works:
@@ -149,24 +140,55 @@ CREATE OR REPLACE FUNCTION tra.update_tra()
   RETURNS trigger AS
 $BODY$
 DECLARE
-  tbl_name name;
-  insert_cols text;
-  value_cols text;
-  
+    str_table_name name;
+    insert_cols text;
+    value_cols text;
+
 BEGIN
-  tbl_name := TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME;
-  insert_cols := (SELECT ddl.oid_to_columns(ddl.fullname_to_oid(tbl_name),'tra'));
-  value_cols := (SELECT ddl.oid_to_columns(ddl.fullname_to_oid(tbl_name),'tra_array'));
-
-  EXECUTE 'INSERT INTO tra.' || TG_TABLE_NAME || ' (tg_op, tg_login, tg_stamp, ' || insert_cols || ') ' ||
-	'VALUES ($1, $2, $3, ' || value_cols || ');'
+    --get current table name
+    str_table_name := TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME;
+    
+    --get column list
+    insert_cols := (SELECT string_agg(attname, ',' ORDER BY attnum)
+        FROM pg_catalog.pg_attribute
+        LEFT JOIN pg_catalog.pg_class ON pg_class.oid = pg_attribute.attrelid
+        LEFT JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+        WHERE attname NOT IN ('change_stamp'
+            , 'create_stamp'
+            , 'delete_stamp'
+            , 'create_login'
+            , 'change_login')
+        AND pg_namespace.nspname || '.' || pg_class.relname = str_table_name
+        AND pg_attribute.attnum >= 0
+        AND substring(pg_attribute.attname FROM 1 FOR 1) != $$.$$);
+    RAISE NOTICE 'insert_cols: %', insert_cols;
+    
+    --get column list in format for getting value
+    value_cols := (SELECT string_agg('$4.' || attname, ',' ORDER BY attnum)
+        FROM pg_catalog.pg_attribute
+        LEFT JOIN pg_catalog.pg_class ON pg_class.oid = pg_attribute.attrelid
+        LEFT JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+        WHERE attname NOT IN ('change_stamp'
+            , 'create_stamp'
+            , 'delete_stamp'
+            , 'create_login'
+            , 'change_login')
+        AND pg_namespace.nspname || '.' || pg_class.relname = str_table_name
+        AND pg_attribute.attnum >= 0
+        AND substring(pg_attribute.attname FROM 1 FOR 1) != $$.$$);
+    RAISE NOTICE 'value_cols: %', value_cols;
+    
+    --insert record into tra table
+    EXECUTE 'INSERT INTO tra.' || TG_TABLE_NAME || ' (tg_op, tg_login, tg_stamp, ' || insert_cols || ') ' ||
+        'VALUES ($1, $2, $3, ' || value_cols || ');'
     USING TG_OP, SESSION_USER, CURRENT_TIMESTAMP, CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
-
-  IF TG_OP = 'DELETE' THEN 
-    RETURN OLD;
-  ELSE
-    RETURN NEW;
-  END IF;
+    
+    --return
+    IF TG_OP = 'DELETE' THEN 
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
 
 END;
 
