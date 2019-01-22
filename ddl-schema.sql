@@ -1,5 +1,33 @@
+DROP FUNCTION ddl.writeable(str_folder text);
+DROP FUNCTION ddl.table_to_view(text, text, text);
+DROP FUNCTION ddl.rename_table(text, text);
+DROP FUNCTION ddl.refresh_table_view(text, text, text);
+DROP FUNCTION ddl.readable(str_username text, str_folder text);
+DROP FUNCTION ddl.readable(str_folder text);
+DROP FUNCTION ddl.oid_to_schema(oid);
+DROP FUNCTION ddl.oid_to_name(oid);
+DROP FUNCTION ddl.oid_to_fullname(oid);
+DROP FUNCTION ddl.name_to_fullname(text);
+DROP FUNCTION ddl.groups_user(name);
+DROP FUNCTION ddl.groups_user();
+DROP FUNCTION ddl.group_user(name, name);
+DROP FUNCTION ddl.group_user(name);
+DROP FUNCTION ddl.function_stored(text);
+DROP FUNCTION ddl.col(text);
+DROP FUNCTION ddl.fullname_to_oid(text);
+DROP FUNCTION ddl.schema_to_oid(text);
+DROP FUNCTION ddl.oid_to_columns(oid, text);
+DROP SCHEMA ddl;
+
+
+-- DROP SCHEMA ddl;
+
 CREATE SCHEMA ddl
   AUTHORIZATION postgres;
+
+
+
+-- DROP FUNCTION ddl.oid_to_columns(oid, text);
 
 CREATE OR REPLACE FUNCTION ddl.oid_to_columns(oid, text)
   RETURNS text AS
@@ -11,14 +39,14 @@ DECLARE
     column_array text[];
     pk_array integer[];
     i integer;
-    pk_columns text;
-    nonpk_columns text;
-    update_columns text;
-    new_columns text;
-    view_columns text;
-    noid_columns text;
-    prop_columns text;
-    text_columns text;
+    pk_columns text := '';
+    nonpk_columns text := '';
+    update_columns text := '';
+    new_columns text := '';
+    view_columns text := '';
+    noid_columns text := '';
+    prop_columns text := '';
+    text_columns text := '';
     raj_cols text;
     column_type text;
     column_type_array text[];
@@ -30,28 +58,26 @@ BEGIN
     tbl := ddl.oid_to_name($1);
     sch := ddl.oid_to_schema($1);
     
-    EXECUTE $SQL$
-                SELECT string_agg(attname::text , ', ')
-                     , string_agg(atttypid::text, ', ')
-                  FROM pg_class c 
-                  JOIN pg_attribute a ON c.oid = a.attrelid 
-                  JOIN pg_namespace n ON c.relnamespace = n.oid
-                 WHERE c.relname = $1
-                   AND a.attnum >= 0
-                   AND n.nspname = $2
-                   AND substring(attname from 1 for 1) != $$.$$
-            $SQL$
-            INTO column_names, column_type
-            USING tbl, sch;
+    SELECT string_agg(quote_ident(attname::text), ', ')
+        , string_agg(atttypid::text, ', ')
+    INTO column_names, column_type
+    FROM pg_class c 
+    JOIN pg_attribute a ON c.oid = a.attrelid 
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE c.relname = tbl
+        AND a.attnum >= 0
+        AND n.nspname = sch
+        AND substring(attname from 1 for 1) != $$.$$;
 
     column_array := string_to_array(column_names, ', ');
     column_type_array := string_to_array(column_type, ', ');
     
-    SELECT INTO pk_array pg_constraint.conkey
-           FROM pg_class
-     INNER JOIN pg_constraint ON pg_constraint.conrelid = pg_class.oid
-          WHERE pg_class.oid = $1
-            AND pg_constraint.contype = 'p';
+    SELECT pg_constraint.conkey
+    INTO pk_array
+    FROM pg_class
+    INNER JOIN pg_constraint ON pg_constraint.conrelid = pg_class.oid
+    WHERE pg_class.oid = $1
+        AND pg_constraint.contype = 'p';
 
     FOR i IN array_lower(column_array,1)..array_upper(column_array,1) LOOP
         IF column_array[i] != 'port_number' THEN
@@ -62,6 +88,8 @@ BEGIN
                              ELSE 'net.jsonify(' || column_array[i] || ')'
                         END;
         END IF;
+        
+        --RAISE NOTICE '%: %', i, column_array[i];
 
         -- all columns but change_stamp, create_stamp, create_login, change_login
         -- if view type, the change stamp column is allowed
@@ -74,6 +102,7 @@ BEGIN
             tra_columns := tra_columns || ',' || column_array[i];
             tra_array_columns := tra_array_columns || ',' || ('$4.' || column_array[i]);
         END IF;
+        --RAISE NOTICE '%: %', i, view_columns;
 
         IF i = ANY (pk_array) THEN
             pk_columns := pk_columns || ',' || column_array[i];
@@ -94,7 +123,7 @@ BEGIN
         END IF;
     END LOOP;
     
-    RETURN CASE WHEN $2 = 'update'      THEN update_columns 
+    RETURN regexp_replace(CASE WHEN $2 = 'update'      THEN update_columns 
                 WHEN $2 = 'pk'          THEN pk_columns 
                 WHEN $2 = 'nonpk'       THEN nonpk_columns
                 WHEN $2 = 'new'         THEN new_columns
@@ -105,13 +134,20 @@ BEGIN
                 WHEN $2 = 'cat text'    THEN raj_cols
                 WHEN $2 = 'tra'         THEN tra_columns
                 WHEN $2 = 'tra_array'   THEN tra_array_columns	
-                ELSE column_names END;
+                ELSE column_names END, '^,', '');
 END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
 
 ALTER FUNCTION ddl.oid_to_columns(oid, text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION ddl.oid_to_columns(oid, text) TO postgres;
+REVOKE ALL ON FUNCTION ddl.oid_to_columns(oid, text) FROM public;
+
+--SELECT ddl.oid_to_columns(oid, text);
+
+
+-- DROP FUNCTION ddl.schema_to_oid(text);
 
 CREATE OR REPLACE FUNCTION ddl.schema_to_oid(text)
   RETURNS oid AS
@@ -122,6 +158,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.schema_to_oid(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.schema_to_oid(text) FROM public;
+
+--SELECT ddl.schema_to_oid(text);
+
+
+-- DROP FUNCTION ddl.fullname_to_oid(text);
 
 CREATE OR REPLACE FUNCTION ddl.fullname_to_oid(text)
   RETURNS oid AS
@@ -133,6 +175,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.fullname_to_oid(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.fullname_to_oid(text) FROM public;
+
+--SELECT ddl.fullname_to_oid(text);
+
+
+-- DROP FUNCTION ddl.col(text);
 
 CREATE OR REPLACE FUNCTION ddl.col(text)
   RETURNS text AS
@@ -143,6 +191,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.col(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.col(text) FROM public;
+
+--SELECT ddl.col(text);
+
+
+-- DROP FUNCTION ddl.function_stored(text);
 
 CREATE OR REPLACE FUNCTION ddl.function_stored(text)
   RETURNS text AS
@@ -153,6 +207,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.function_stored(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.function_stored(text) FROM public;
+
+--SELECT ddl.function_stored(text);
+
+
+-- DROP FUNCTION ddl.group_user(name);
 
 CREATE OR REPLACE FUNCTION ddl.group_user(name)
   RETURNS boolean AS
@@ -170,6 +230,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.group_user(name) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.group_user(name) FROM public;
+
+--SELECT ddl.group_user(name);
+
+
+-- DROP FUNCTION ddl.group_user(name, name);
 
 CREATE OR REPLACE FUNCTION ddl.group_user(name, name)
   RETURNS boolean AS
@@ -187,6 +253,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.group_user(name, name) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.group_user(name, name) FROM public;
+
+--SELECT ddl.group_user(name, name);
+
+
+-- DROP FUNCTION ddl.groups_user();
 
 CREATE OR REPLACE FUNCTION ddl.groups_user()
   RETURNS text AS
@@ -204,6 +276,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.groups_user() OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.groups_user() FROM public;
+
+--SELECT ddl.groups_user();
+
+
+-- DROP FUNCTION ddl.groups_user(name);
 
 CREATE OR REPLACE FUNCTION ddl.groups_user(name)
   RETURNS text AS
@@ -221,6 +299,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.groups_user(name) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.groups_user(name) FROM public;
+
+--SELECT ddl.groups_user(name);
+
+
+-- DROP FUNCTION ddl.name_to_fullname(text);
 
 CREATE OR REPLACE FUNCTION ddl.name_to_fullname(text)
   RETURNS text AS
@@ -254,6 +338,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.name_to_fullname(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.name_to_fullname(text) FROM public;
+
+--SELECT ddl.name_to_fullname(text);
+
+
+-- DROP FUNCTION ddl.oid_to_fullname(oid);
 
 CREATE OR REPLACE FUNCTION ddl.oid_to_fullname(oid)
   RETURNS text AS
@@ -266,6 +356,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.oid_to_fullname(oid) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.oid_to_fullname(oid) FROM public;
+
+--SELECT ddl.oid_to_fullname(oid);
+
+
+-- DROP FUNCTION ddl.oid_to_name(oid);
 
 CREATE OR REPLACE FUNCTION ddl.oid_to_name(oid)
   RETURNS text AS
@@ -278,6 +374,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.oid_to_name(oid) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.oid_to_name(oid) FROM public;
+
+--SELECT ddl.oid_to_name(oid);
+
+
+-- DROP FUNCTION ddl.oid_to_schema(oid);
 
 CREATE OR REPLACE FUNCTION ddl.oid_to_schema(oid)
   RETURNS text AS
@@ -290,6 +392,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.oid_to_schema(oid) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.oid_to_schema(oid) FROM public;
+
+--SELECT ddl.oid_to_schema(oid);
+
+
+-- DROP FUNCTION ddl.readable(str_folder text);
 
 CREATE OR REPLACE FUNCTION ddl.readable(str_folder text)
   RETURNS boolean AS
@@ -303,6 +411,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.readable(str_folder text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.readable(str_folder text) FROM public;
+
+--SELECT ddl.readable(str_folder text);
+
+
+-- DROP FUNCTION ddl.readable(str_username text, str_folder text);
 
 CREATE OR REPLACE FUNCTION ddl.readable(str_username text, str_folder text)
   RETURNS boolean AS
@@ -316,6 +430,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.readable(str_username text, str_folder text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.readable(str_username text, str_folder text) FROM public;
+
+--SELECT ddl.readable(str_username text, str_folder text);
+
+
+-- DROP FUNCTION ddl.refresh_table_view(text, text, text);
 
 CREATE OR REPLACE FUNCTION ddl.refresh_table_view(text, text, text)
   RETURNS text AS
@@ -327,7 +447,7 @@ DECLARE
   sch text;
   view_name text;
   primary_list text[];
-  primary_clause text;
+  primary_clause text := '';
   delete_rule text;
   insert_rule text;
   update_rule text;
@@ -400,6 +520,13 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.refresh_table_view(text, text, text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION ddl.refresh_table_view(text, text, text) TO postgres;
+REVOKE ALL ON FUNCTION ddl.refresh_table_view(text, text, text) FROM public;
+
+--SELECT ddl.refresh_table_view(text, text, text);
+
+
+-- DROP FUNCTION ddl.rename_table(text, text);
 
 CREATE OR REPLACE FUNCTION ddl.rename_table(text, text)
   RETURNS text AS
@@ -426,6 +553,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.rename_table(text, text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.rename_table(text, text) FROM public;
+
+--SELECT ddl.rename_table(text, text);
+
+
+-- DROP FUNCTION ddl.table_to_view(text, text, text);
 
 CREATE OR REPLACE FUNCTION ddl.table_to_view(text, text, text)
   RETURNS text AS
@@ -505,6 +638,12 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.table_to_view(text, text, text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.table_to_view(text, text, text) FROM public;
+
+--SELECT ddl.table_to_view(text, text, text);
+
+
+-- DROP FUNCTION ddl.writeable(str_folder text);
 
 CREATE OR REPLACE FUNCTION ddl.writeable(str_folder text)
   RETURNS boolean AS
@@ -517,3 +656,8 @@ $BODY$
   COST 100;
 
 ALTER FUNCTION ddl.writeable(str_folder text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION ddl.writeable(str_folder text) FROM public;
+
+--SELECT ddl.writeable(str_folder text);
+
+
