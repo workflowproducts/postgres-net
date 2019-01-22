@@ -1,25 +1,3 @@
-DROP FUNCTION ddl.writeable(str_folder text);
-DROP FUNCTION ddl.table_to_view(text, text, text);
-DROP FUNCTION ddl.rename_table(text, text);
-DROP FUNCTION ddl.refresh_table_view(text, text, text);
-DROP FUNCTION ddl.readable(str_username text, str_folder text);
-DROP FUNCTION ddl.readable(str_folder text);
-DROP FUNCTION ddl.oid_to_schema(oid);
-DROP FUNCTION ddl.oid_to_name(oid);
-DROP FUNCTION ddl.oid_to_fullname(oid);
-DROP FUNCTION ddl.name_to_fullname(text);
-DROP FUNCTION ddl.groups_user(name);
-DROP FUNCTION ddl.groups_user();
-DROP FUNCTION ddl.group_user(name, name);
-DROP FUNCTION ddl.group_user(name);
-DROP FUNCTION ddl.function_stored(text);
-DROP FUNCTION ddl.col(text);
-DROP FUNCTION ddl.fullname_to_oid(text);
-DROP FUNCTION ddl.schema_to_oid(text);
-DROP FUNCTION ddl.oid_to_columns(oid, text);
-DROP SCHEMA ddl;
-
-
 -- DROP SCHEMA ddl;
 
 CREATE SCHEMA ddl
