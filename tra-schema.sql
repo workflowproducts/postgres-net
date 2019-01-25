@@ -4,7 +4,6 @@ CREATE SCHEMA tra
   AUTHORIZATION postgres;
 
 GRANT USAGE,CREATE ON SCHEMA tra TO postgres;
-GRANT USAGE ON SCHEMA tra TO trusted_g;
 
 -- DROP FUNCTION tra.install_tra(str_args text);
 
@@ -18,6 +17,7 @@ DECLARE
   str_sql text;
   str_trigger text;
   str_update text;
+  str_alter text;
   
 BEGIN
     --Usage: DO $$ EXECUTE tra.install_tra('public.rtable_test'); $$;
@@ -61,14 +61,16 @@ BEGIN
     RAISE NOTICE 'str_trigger: %', str_trigger;
     
     -- NEED TO ADD ONE UPDATE TRANSACTION PER RECORD THAT HAS BEEN UPDATED
-    str_update :=  $$INSERT INTO tra.$$ || str_only_table_name || $$ (tg_op, tg_login, tg_stamp, $$ || select_cols ||
-	    $$) SELECT 'UPDATE', change_login, change_stamp, $$ || select_cols ||  
+    str_update :=  $$INSERT INTO tra.$$ || str_only_table_name || $$ (pk, tg_op, tg_login, tg_stamp, $$ || select_cols ||
+	    $$) SELECT nextval('tra.tra_seq') AS pk, 'UPDATE', change_login, change_stamp, $$ || select_cols ||  
 	    $$ FROM $$ || str_table_name ||
 	    $$ WHERE change_stamp != create_stamp;$$;
 	RAISE NOTICE 'str_update: %', str_update;
 
+    str_alter := $$ALTER TABLE tra.$$ || str_only_table_name || $$ ALTER COLUMN pk SET DEFAULT nextval('tra.tra_seq');$$;
+
     --return sql
-    RETURN str_sql || E'\r\n' || str_update ||  E'\r\n' || str_trigger;
+    RETURN str_sql || E'\r\n' || str_update ||  E'\r\n' || str_trigger ||  E'\r\n' || str_alter;
 
   --***********************************
   -- how tra works:
