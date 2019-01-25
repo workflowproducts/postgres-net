@@ -204,3 +204,24 @@ REVOKE ALL ON FUNCTION tra.update_tra() FROM public;
 
 
 CREATE SEQUENCE tra.tra_seq;
+
+
+/*
+-- to fix NULL pks (because of older versions of this schema)
+DO $$
+DECLARE
+  c CURSOR FOR
+    SELECT *
+    FROM tra.rtesting_table
+    WHERE pk IS NULL
+    ORDER BY rtesting_table.tg_stamp ASC, id ASC
+    FOR UPDATE;
+BEGIN
+  FOR row IN c LOOP
+    UPDATE tra.rtesting_table
+    SET pk = nextval('tra.tra_seq')
+    WHERE CURRENT OF c;
+  END LOOP;
+END
+$$;
+*/
