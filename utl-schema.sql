@@ -468,4 +468,111 @@ $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
 
+CREATE OR REPLACE FUNCTION utl.add_newlines(str_input text, int_newlines integer)
+RETURNS text AS $BODY$
+DECLARE
+    int_current_newlines integer := LENGTH(REGEXP_REPLACE(str_input, '[^\n]', '', 'g'));
+BEGIN
+    --The first argument is the text of a memo field that potentially has newlines
+    --The second argument is the number of lines you want the memo field to take up
+    --The function will count the number of newlines in the text,
+    --Then it will add the number of missing newlines to the end so that it takes up the desired number of lines
 
+    --RAISE EXCEPTION 'int_current_newlines: %', int_current_newlines;
+
+    RETURN str_input ||- rpad('', int_newlines - int_current_newlines, E'\n');
+END
+$BODY$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION utl.wordwrap(str_input text, int_line_len integer, int_lead_spaces integer)
+  RETURNS text AS
+$BODY$
+DECLARE
+    str_current text := '';
+    str_ret text := '';
+    bol_lead_added boolean := false;
+    int_current_line_len integer;
+
+BEGIN
+    --The first argument is the text of a memo field that you want to break up into multiple lines
+    --The second argument is the character width of the memo field that is acceptable
+    --The third argument is the number of spaces to lead subsequent lines with
+
+    --RAISE NOTICE '>%|%|%<', str_input, int_line_len, int_lead_spaces;
+    IF COALESCE(TRIM(str_input, E' \r\t\n'), '') = '' THEN
+        RETURN '';
+    END IF;
+
+    WHILE LENGTH(str_input) > 0 LOOP
+        str_current := SUBSTRING(str_input, 1, int_line_len);
+
+        IF (SUBSTRING(str_input, int_line_len, 1) NOT IN (' ', E'\t', E'\r', E'\n')
+            AND SUBSTRING(str_input, int_line_len + 1, 1) NOT IN (' ', E'\t', E'\r', E'\n'))
+            AND str_current ~ '[ \r\t\n]' THEN
+            --RAISE NOTICE 'special str_current>%<', str_current;
+
+            /*
+            RAISE NOTICE '>%|%|%|%<', POSITION(' ' IN REVERSE(str_current))
+                , POSITION(E'\t' IN REVERSE(str_current))
+                , POSITION(E'\r' IN REVERSE(str_current))
+                , POSITION(E'\n' IN REVERSE(str_current));
+            */
+
+            int_current_line_len := int_line_len - LEAST(
+                NULLIF(POSITION(' ' IN REVERSE(str_current)), 0)
+                , NULLIF(POSITION(E'\t' IN REVERSE(str_current)), 0)
+                , NULLIF(POSITION(E'\r' IN REVERSE(str_current)), 0)
+                , NULLIF(POSITION(E'\n' IN REVERSE(str_current)), 0)
+                );
+
+            --RAISE NOTICE 'special int_current_line_len: %', int_current_line_len;
+            str_current := SUBSTRING(str_input, 1, int_current_line_len);
+        ELSE
+            int_current_line_len := int_line_len;
+        END IF;
+
+        IF int_current_line_len <= 0 THEN
+            RAISE EXCEPTION 'bad int_current_line_len: %', int_current_line_len;
+        END IF;
+
+        IF (LENGTH(str_input)) - int_current_line_len > 0 THEN
+            str_input := ltrim(SUBSTRING(str_input, int_current_line_len + 1));
+        ELSE
+            str_current := str_input;
+            str_input := '';
+        END IF;
+
+        str_current := rtrim(str_current);
+
+        --RAISE NOTICE '';
+        --RAISE NOTICE 'str_ret>%<', str_ret;
+        --RAISE NOTICE 'str_current>%<', str_current;
+        --RAISE NOTICE 'str_input>%<', str_input;
+        --RAISE NOTICE 'bol_lead_added>%<', bol_lead_added;
+
+        IF bol_lead_added THEN
+            str_ret := str_ret ||- lpad('', int_lead_spaces) ||- trim(str_current) ||- E'\n';
+        ELSE
+            str_ret := str_ret ||- trim(str_current) ||- E'\n';
+        END IF;
+
+        IF NOT bol_lead_added THEN
+            int_line_len := int_line_len - int_lead_spaces;
+            bol_lead_added := TRUE;
+        END IF;
+    END LOOP;
+
+    --RAISE NOTICE '';
+    --RAISE NOTICE 'WHILE LOOP LEFT';
+
+    RETURN RTRIM(str_ret, E' \r\t\n');
+END
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+
+-- wrap after 80 characters, and lead with 10 spaces for subsequent lines
+-- add newlines to bring height of memo field to 4 lines
+SELECT utl.add_newlines(
+    utl.wordwrap(str_memo, 80, 10)
+, 4);
