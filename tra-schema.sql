@@ -57,7 +57,7 @@ BEGIN
     str_trigger := $$--DROP TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') || $$ ON $$ || str_table_name || E';\r\n' ||
      $$CREATE TRIGGER tra_trg_$$ || replace(str_table_name,'.','_') ||
      $$  BEFORE INSERT OR UPDATE OR DELETE ON $$ || str_table_name ||
-     $$  FOR EACH ROW EXECUTE PROCEDURE tra.update_tra(); $$ || E'\r\n\r\n';
+     $$  FOR EACH ROW EXECUTE PROCEDURE tra.update_tra(); $$;
     RAISE NOTICE 'str_trigger: %', str_trigger;
     
     -- NEED TO ADD ONE UPDATE TRANSACTION PER RECORD THAT HAS BEEN UPDATED
@@ -70,7 +70,7 @@ BEGIN
     str_alter := $$ALTER TABLE tra.$$ || str_only_table_name || $$ ALTER COLUMN pk SET DEFAULT nextval('tra.tra_seq');$$;
 
     --return sql
-    RETURN str_sql || E'\r\n' || str_update ||  E'\r\n' || str_trigger ||  E'\r\n' || str_alter;
+    RETURN str_sql || E'\r\n' || str_update ||  E'\r\n' || str_trigger || E'\r\n' || str_alter || E'\r\n\r\n';
 
   --***********************************
   -- how tra works:
