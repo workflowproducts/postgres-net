@@ -18,9 +18,12 @@ DECLARE
     pk_array integer[];
     i integer;
     pk_columns text := '';
+    all_columns text := '';
     nonpk_columns text := '';
     update_columns text := '';
+    update_all_columns text := '';
     new_columns text := '';
+    new_all_columns text := '';
     view_columns text := '';
     noid_columns text := '';
     prop_columns text := '';
@@ -82,8 +85,11 @@ BEGIN
         END IF;
         --RAISE NOTICE '%: %', i, view_columns;
 
+        all_columns := all_columns || ',' || column_array[i];
         IF i = ANY (pk_array) THEN
             pk_columns := pk_columns || ',' || column_array[i];
+            new_all_columns := new_all_columns || ',' || 'new.' || column_array[i];
+            update_all_columns := update_all_columns || ',' || column_array[i] || '=new.' || column_array[i];
         ELSE
             noid_columns := noid_columns || ',' || column_array[i];
             prop_columns := prop_columns || ',' || 'cat_prop(' || column_array[i] || ') AS ' || column_array[i];
@@ -96,14 +102,19 @@ BEGIN
                     AND column_array[i] != 'change_login' THEN
                 nonpk_columns := nonpk_columns || ',' || column_array[i];
                 new_columns := new_columns || ',' || 'new.' || column_array[i];
+                new_all_columns := new_all_columns || ',' || 'new.' || column_array[i];
                 update_columns := update_columns || ',' || column_array[i] || '=new.' || column_array[i];
+                update_all_columns := update_all_columns || ',' || column_array[i] || '=new.' || column_array[i];
             END IF;
         END IF;
     END LOOP;
     
-    RETURN regexp_replace(CASE WHEN $2 = 'update'      THEN update_columns 
+    RETURN regexp_replace(CASE WHEN $2 = 'update' AND pk_columns = all_columns     THEN update_all_columns 
+                WHEN $2 = 'update'      THEN update_columns 
                 WHEN $2 = 'pk'          THEN pk_columns 
+                WHEN $2 = 'nonpk' AND pk_columns = all_columns THEN all_columns
                 WHEN $2 = 'nonpk'       THEN nonpk_columns
+                WHEN $2 = 'new' AND pk_columns = all_columns THEN new_all_columns
                 WHEN $2 = 'new'         THEN new_columns
                 WHEN $2 = 'view'        THEN view_columns
                 WHEN $2 = 'noid'        THEN noid_columns
@@ -459,7 +470,7 @@ BEGIN
         'DELETE FROM ' || fullname || ' WHERE ';
 
       --construct primary key clause
-      primary_list := string_to_array(ddl.oid_to_columns(toid, 'pk'), ', ');
+      primary_list := string_to_array(ddl.oid_to_columns(toid, 'pk'), ',');
 
       FOR i IN 1..array_upper(primary_list,1) LOOP
         primary_clause := primary_clause || CASE WHEN i > 1 THEN 'AND ' ELSE '' END || 'old.' || primary_list[i] 
