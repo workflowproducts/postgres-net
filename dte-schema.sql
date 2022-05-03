@@ -290,3 +290,27 @@ $BODY$
 
 ALTER FUNCTION dte.for_month_and_day_give_next_future_date(date) OWNER TO postgres;
 
+CREATE OR REPLACE FUNCTION dte.add_business_day(dte_from_date date, int_days integer)
+  RETURNS date AS
+$BODY$
+SELECT COALESCE(
+    (
+        SELECT em2.em1
+        FROM (
+            SELECT em1.em1::date
+                , row_number() OVER (ORDER BY CASE WHEN int_days = abs(int_days) THEN em1.em1 END, em1.em1 DESC)
+            FROM generate_series(
+                dte_from_date + CASE WHEN int_days = abs(int_days) THEN 1 ELSE -1 END
+                , dte_from_date + (((abs(int_days) * 2) + 5) * CASE WHEN int_days = abs(int_days) THEN 1 ELSE -1 END)
+                , '1 day'::interval * CASE WHEN int_days = abs(int_days) THEN 1 ELSE -1 END
+            ) em1
+            WHERE EXTRACT('dow' FROM em1.em1) NOT IN (0, 6)
+        ) em2
+        WHERE row_number = abs(int_days)
+    )
+, dte_from_date)
+$BODY$
+  LANGUAGE sql VOLATILE
+  COST 100;
+
+ALTER FUNCTION dte.add_business_day(dte_from_date date, int_days integer) OWNER TO postgres;
