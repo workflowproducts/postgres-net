@@ -136,6 +136,120 @@ REVOKE ALL ON FUNCTION tra.install_tra(str_args text) FROM public;
 
 --SELECT tra.install_tra(str_args text);
 
+-- DROP FUNCTION tra.tra_check(text);
+
+CREATE OR REPLACE FUNCTION tra.tra_check(text)
+  RETURNS text AS
+$BODY$
+--send schema as argument
+--checks for missing tables, columns, or incorrect column types
+SELECT string_agg(em.result, E'\n') AS result
+FROM (
+    SELECT E'Missing TRA columns:\n'
+        || string_agg(
+            pg_namespace.nspname || '.' || pg_class.relname || '.' || pg_attribute.attname
+            , E'\n'
+            ORDER BY pg_namespace.nspname || '.' || pg_class.relname || '.' || pg_attribute.attname
+        )
+        || E'\n\n' AS result
+    FROM pg_catalog.pg_namespace 
+    LEFT JOIN pg_catalog.pg_class ON pg_class.relnamespace = pg_namespace.oid
+    LEFT JOIN pg_catalog.pg_attribute ON pg_attribute.attrelid = pg_class.oid
+    LEFT JOIN pg_catalog.pg_namespace tra_pg_namespace ON TRUE
+    LEFT JOIN pg_catalog.pg_class tra_pg_class ON tra_pg_class.relnamespace = tra_pg_namespace.oid AND pg_class.relname = tra_pg_class.relname
+    LEFT JOIN pg_catalog.pg_attribute tra_pg_attribute ON tra_pg_attribute.attrelid = tra_pg_class.oid AND pg_attribute.attname = tra_pg_attribute.attname
+    WHERE pg_namespace.nspname = $1
+    AND tra_pg_namespace.nspname = 'tra'
+   AND pg_class.relname ILIKE 'rclient'
+    AND tra_pg_class.relname IS NOT NULL
+    
+    AND tra_pg_attribute.attname IS NULL
+    
+    AND pg_class.relkind = 'r'
+    AND tra_pg_class.relkind = 'r'
+    AND pg_attribute.attname NOT LIKE '%pg.dropped%'
+    AND pg_attribute.attname NOT IN (
+        'ctid'
+        , 'xmin'
+        , 'cmin'
+        , 'xmax'
+        , 'cmax'
+        , 'tableoid'
+        
+        , 'change_login'
+        , 'change_stamp'
+        , 'create_stamp'
+    )
+    UNION
+    SELECT E'TRA table type mismatch:\n'
+        || string_agg(
+            pg_namespace.nspname || '.' || pg_class.relname || '.' || pg_attribute.attname
+            , E'\n'
+            ORDER BY pg_namespace.nspname || '.' || pg_class.relname || '.' || pg_attribute.attname
+        )
+        || E'\n\n' AS result
+    FROM pg_catalog.pg_namespace 
+    LEFT JOIN pg_catalog.pg_class ON pg_class.relnamespace = pg_namespace.oid
+    LEFT JOIN pg_catalog.pg_attribute ON pg_attribute.attrelid = pg_class.oid
+    LEFT JOIN pg_catalog.pg_namespace tra_pg_namespace ON TRUE
+    LEFT JOIN pg_catalog.pg_class tra_pg_class ON tra_pg_class.relnamespace = tra_pg_namespace.oid AND pg_class.relname = tra_pg_class.relname
+    LEFT JOIN pg_catalog.pg_attribute tra_pg_attribute ON tra_pg_attribute.attrelid = tra_pg_class.oid AND pg_attribute.attname = tra_pg_attribute.attname
+    WHERE pg_namespace.nspname = $1
+    AND tra_pg_namespace.nspname = 'tra'
+    AND pg_class.relname ILIKE 'rclient'
+    AND tra_pg_class.relname IS NOT NULL
+    
+    AND tra_pg_attribute.attname IS NOT NULL
+    AND (
+        format_type(tra_pg_attribute.atttypid, tra_pg_attribute.atttypmod) IS DISTINCT FROM format_type(pg_attribute.atttypid, pg_attribute.atttypmod)
+    )
+    
+    AND pg_class.relkind = 'r'
+    AND tra_pg_class.relkind = 'r'
+    AND pg_attribute.attname NOT LIKE '%pg.dropped%'
+    AND pg_attribute.attname NOT IN (
+        'ctid'
+        , 'xmin'
+        , 'cmin'
+        , 'xmax'
+        , 'cmax'
+        , 'tableoid'
+        
+        , 'change_login'
+        , 'change_stamp'
+        , 'create_stamp'
+    )
+    UNION
+    SELECT E'Missing TRA table:\n'
+        || string_agg(
+            pg_namespace.nspname ||- '.' ||- pg_class.relname
+            , E'\n'
+            ORDER BY pg_namespace.nspname ||- '.' ||- pg_class.relname ASC
+        )
+        || E'\n\n' AS result
+    FROM pg_catalog.pg_class
+    LEFT JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+    WHERE pg_namespace.nspname = $1
+    AND relkind = 'r'
+    AND pg_class.relname NOT IN (
+        SELECT pg_class.relname
+        FROM pg_catalog.pg_class
+        LEFT JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+        WHERE pg_namespace.nspname = 'tra'
+        AND relkind = 'r'
+    )
+    
+
+) em
+;
+$BODY$
+  LANGUAGE sql IMMUTABLE
+  COST 100;
+
+ALTER FUNCTION tra.tra_check(text) OWNER TO postgres;
+GRANT EXECUTE ON FUNCTION tra.tra_check(text) TO postgres;
+GRANT EXECUTE ON FUNCTION tra.tra_check(text) TO public;
+
 -- DROP FUNCTION tra.update_tra();
 
 CREATE OR REPLACE FUNCTION tra.update_tra()
