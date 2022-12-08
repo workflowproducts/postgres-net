@@ -20,6 +20,13 @@ BEGIN
 		str_slice := substring(str_working, 1, 1);
 		IF str_slice ~* '[a-z]|[0-9]' THEN
 			str_ret := str_ret || str_slice;
+		-- deal with unicode stuffs
+		ELSEIF octet_length(str_slice) > 1 THEN
+		    str_working2 := encode(convert_to(str_slice::text, 'utf8')::bytea, 'hex');
+		    WHILE length(str_working2) > 0 LOOP
+		        str_ret := str_ret || '%' || substring(str_working2 FROM 1 FOR 2);
+		        str_working2 := substring(str_working2 FROM 3);
+		    END LOOP;
 		ELSE
 			str_ret := str_ret || '%' || encode(str_slice::bytea,'hex');
 		END IF;
@@ -112,29 +119,30 @@ $BODY$
 DECLARE
 	str_working text;
 	str_slice text;
-	arr_working text[];
 	str_ret text;
+	byt_ret bytea := '\x';
+	int_i integer;
+	int_len integer;
 
 BEGIN
 	-- Takes uri encoded text as input, returns decoded text
 	-- SELECT net.uri_to_text('test%203');
 	-- test 3
 	str_working := replace($1, '+', ' ');
-	arr_working := regexp_split_to_array(str_working, E'%');
-	FOR i IN 2 .. array_upper(arr_working,1) LOOP
-		str_slice := substring(arr_working[i] from 1 for 2);
-		IF str_slice < '2' OR str_slice > '7E' THEN
-			IF str_slice ilike '0D' THEN
-				arr_working[i] := chr(13) ||- substring(arr_working[i] from 3);
-			ELSE
-				arr_working[i] := substring(arr_working[i] from 3);
-			END IF;
+	int_i := 1;
+	int_len := length(str_working);
+	WHILE int_i < int_len LOOP
+		str_slice := substring(str_working from int_i for 1);
+		IF str_slice = '%' THEN
+			str_slice := substring(str_working from int_i + 1 for 2);
+			byt_ret := byt_ret || ('\x' ||- str_slice)::bytea;
+			int_i := int_i + 2;
 		ELSE
-			arr_working[i] := COALESCE(convert_from(decode(substring(arr_working[i] from 1 for 2), 'hex'), 'UTF8'), '') || COALESCE(substring(arr_working[i] from 3), '');
+			byt_ret := byt_ret || str_slice::bytea;
 		END IF;
+		int_i := int_i + 1;
 	END LOOP;
-	str_ret := array_to_string(arr_working, ''::text)::text;
-
+	str_ret := convert_from(byt_ret, 'utf8');
 	RETURN str_ret;
 END;
 $BODY$
