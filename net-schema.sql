@@ -7,6 +7,7 @@ CREATE OR REPLACE FUNCTION net.text_to_uri(text)
 $BODY$
 DECLARE
 	str_working text;
+	str_working2 text;
 	str_slice text;
 	str_ret text;
 
@@ -131,7 +132,7 @@ BEGIN
 	str_working := replace($1, '+', ' ');
 	int_i := 1;
 	int_len := length(str_working);
-	WHILE int_i < int_len LOOP
+	WHILE int_i <= int_len LOOP
 		str_slice := substring(str_working from int_i for 1);
 		IF str_slice = '%' THEN
 			str_slice := substring(str_working from int_i + 1 for 2);
