@@ -28,6 +28,9 @@ BEGIN
 		        str_ret := str_ret || '%' || substring(str_working2 FROM 1 FOR 2);
 		        str_working2 := substring(str_working2 FROM 3);
 		    END LOOP;
+		-- if we don't handle this case, the bytea cast breaks
+		ELSEIF str_slice = E'\\' THEN
+		    str_ret := str_ret || '%5C';
 		ELSE
 			str_ret := str_ret || '%' || encode(str_slice::bytea,'hex');
 		END IF;
