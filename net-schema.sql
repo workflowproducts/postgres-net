@@ -40,7 +40,7 @@ BEGIN
 	RETURN str_ret;
 END;
 $BODY$
-	LANGUAGE plpgsql VOLATILE
+	LANGUAGE plpgsql IMMUTABLE
 	COST 100;
 ALTER FUNCTION net.text_to_uri(text) OWNER TO postgres;
 GRANT EXECUTE ON FUNCTION net.text_to_uri(text) TO public;
@@ -76,7 +76,7 @@ BEGIN
 END
 
 $BODY$
-	LANGUAGE plpgsql VOLATILE
+	LANGUAGE plpgsql IMMUTABLE
 	COST 100;
 ALTER FUNCTION net.getpar(text, text) OWNER TO postgres;
 GRANT EXECUTE ON FUNCTION net.getpar(text, text) TO public;
@@ -111,7 +111,7 @@ BEGIN
 END
 
 $BODY$
-	LANGUAGE plpgsql VOLATILE
+	LANGUAGE plpgsql IMMUTABLE
 	COST 100;
 
 ALTER FUNCTION net.getpare(text, text) OWNER TO postgres;
@@ -150,7 +150,7 @@ BEGIN
 	RETURN str_ret;
 END;
 $BODY$
-	LANGUAGE plpgsql VOLATILE
+	LANGUAGE plpgsql IMMUTABLE
 	COST 100;
 ALTER FUNCTION net.uri_to_text(text) OWNER TO postgres;
 GRANT EXECUTE ON FUNCTION net.uri_to_text(text) TO public;
